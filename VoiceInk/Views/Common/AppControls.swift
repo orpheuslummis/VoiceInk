@@ -40,8 +40,8 @@ struct AppIconButton: View {
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
-        .help(help)
-        .accessibilityLabel(help)
+        .help(Text(help))
+        .accessibilityLabel(Text(help))
     }
 }
 

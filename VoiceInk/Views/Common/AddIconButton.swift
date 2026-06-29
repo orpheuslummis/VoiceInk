@@ -15,8 +15,8 @@ struct AddIconButton: View {
                 .foregroundStyle(isDisabled ? .tertiary : .secondary)
         }
         .buttonStyle(.plain)
-        .help(helpText)
-        .accessibilityLabel(helpText)
+        .help(Text(helpText))
+        .accessibilityLabel(Text(helpText))
         .disabled(isDisabled)
     }
 }
