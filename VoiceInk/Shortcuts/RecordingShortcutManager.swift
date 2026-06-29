@@ -174,32 +174,41 @@ class RecordingShortcutManager: ObservableObject {
     private func setupMiddleClickMonitoring() {
         guard isMiddleClickToggleEnabled else { return }
 
-        // Mouse Down
+        // Middle mouse button (button 2) is a hybrid recording trigger:
+        // a short deliberate press toggles hands-free recording; a longer hold
+        // becomes push-to-talk (records while held, stops on release). The
+        // activation delay debounces normal/accidental middle-clicks.
+
         let downMonitor = NSEvent.addGlobalMonitorForEvents(matching: .otherMouseDown) { [weak self] event in
             guard let self = self, event.buttonNumber == 2 else { return }
+            let eventTime = event.timestamp
 
             self.middleClickTask?.cancel()
-            self.middleClickTask = Task {
-                do {
-                    let delay = UInt64(self.middleClickActivationDelay) * 1_000_000 // ms to ns
-                    try await Task.sleep(nanoseconds: delay)
-                    
-                    guard self.isMiddleClickToggleEnabled, !Task.isCancelled else { return }
-                    
-                    Task { @MainActor in
-                        guard self.canHandleShortcutAction else { return }
-                        await self.recorderUIManager.toggleRecorderPanel()
-                    }
-                } catch {
-                    // Cancelled
-                }
+            self.middleClickTask = Task { @MainActor in
+                let delay = UInt64(self.middleClickActivationDelay) * 1_000_000 // ms to ns
+                try? await Task.sleep(nanoseconds: delay)
+                guard self.isMiddleClickToggleEnabled, !Task.isCancelled else { return }
+
+                await self.shortcutModeHandler.handleKeyDown(
+                    action: .primaryRecording,
+                    eventTime: eventTime,
+                    mode: .hybrid
+                )
             }
         }
 
-        // Mouse Up
         let upMonitor = NSEvent.addGlobalMonitorForEvents(matching: .otherMouseUp) { [weak self] event in
             guard let self = self, event.buttonNumber == 2 else { return }
+            let eventTime = event.timestamp
             self.middleClickTask?.cancel()
+
+            Task { @MainActor in
+                await self.shortcutModeHandler.handleKeyUp(
+                    action: .primaryRecording,
+                    eventTime: eventTime,
+                    mode: .hybrid
+                )
+            }
         }
 
         middleClickMonitors = [downMonitor, upMonitor]
