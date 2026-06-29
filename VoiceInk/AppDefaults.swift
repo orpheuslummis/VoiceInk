@@ -48,6 +48,7 @@ enum AppDefaults {
             // Shortcuts
             "isMiddleClickToggleEnabled": false,
             "middleClickActivationDelay": 200,
+            "middleClickMode": "toggle",
 
             // Enhancement
             "SkipShortEnhancement": true,

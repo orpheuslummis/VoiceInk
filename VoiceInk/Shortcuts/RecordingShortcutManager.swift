@@ -40,6 +40,11 @@ class RecordingShortcutManager: ObservableObject {
             UserDefaults.standard.set(middleClickActivationDelay, forKey: "middleClickActivationDelay")
         }
     }
+    @Published var middleClickMode: Mode {
+        didSet {
+            UserDefaults.standard.set(middleClickMode.rawValue, forKey: "middleClickMode")
+        }
+    }
     
     private var engine: VoiceInkEngine
     private var recorderUIManager: RecorderUIManager
@@ -113,6 +118,7 @@ class RecordingShortcutManager: ObservableObject {
 
         self.isMiddleClickToggleEnabled = UserDefaults.standard.bool(forKey: "isMiddleClickToggleEnabled")
         self.middleClickActivationDelay = UserDefaults.standard.integer(forKey: "middleClickActivationDelay")
+        self.middleClickMode = Mode(rawValue: UserDefaults.standard.string(forKey: "middleClickMode") ?? "") ?? .toggle
 
         let shortcutModeHandler = RecordingShortcutModeHandler(
             canHandleShortcutAction: {
@@ -174,32 +180,41 @@ class RecordingShortcutManager: ObservableObject {
     private func setupMiddleClickMonitoring() {
         guard isMiddleClickToggleEnabled else { return }
 
-        // Mouse Down
+        // Middle mouse button (button 2) drives recording through the shared
+        // mode handler, so it respects the configured Toggle / Push-to-Talk /
+        // Hybrid mode just like a keyboard shortcut. The activation delay
+        // debounces accidental middle-clicks.
+
         let downMonitor = NSEvent.addGlobalMonitorForEvents(matching: .otherMouseDown) { [weak self] event in
             guard let self = self, event.buttonNumber == 2 else { return }
+            let eventTime = event.timestamp
 
             self.middleClickTask?.cancel()
-            self.middleClickTask = Task {
-                do {
-                    let delay = UInt64(self.middleClickActivationDelay) * 1_000_000 // ms to ns
-                    try await Task.sleep(nanoseconds: delay)
-                    
-                    guard self.isMiddleClickToggleEnabled, !Task.isCancelled else { return }
-                    
-                    Task { @MainActor in
-                        guard self.canHandleShortcutAction else { return }
-                        await self.recorderUIManager.toggleRecorderPanel()
-                    }
-                } catch {
-                    // Cancelled
-                }
+            self.middleClickTask = Task { @MainActor in
+                let delay = UInt64(self.middleClickActivationDelay) * 1_000_000 // ms to ns
+                try? await Task.sleep(nanoseconds: delay)
+                guard self.isMiddleClickToggleEnabled, !Task.isCancelled else { return }
+
+                await self.shortcutModeHandler.handleKeyDown(
+                    action: .primaryRecording,
+                    eventTime: eventTime,
+                    mode: self.middleClickMode
+                )
             }
         }
 
-        // Mouse Up
         let upMonitor = NSEvent.addGlobalMonitorForEvents(matching: .otherMouseUp) { [weak self] event in
             guard let self = self, event.buttonNumber == 2 else { return }
+            let eventTime = event.timestamp
             self.middleClickTask?.cancel()
+
+            Task { @MainActor in
+                await self.shortcutModeHandler.handleKeyUp(
+                    action: .primaryRecording,
+                    eventTime: eventTime,
+                    mode: self.middleClickMode
+                )
+            }
         }
 
         middleClickMonitors = [downMonitor, upMonitor]
