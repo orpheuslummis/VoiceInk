@@ -40,6 +40,11 @@ class RecordingShortcutManager: ObservableObject {
             UserDefaults.standard.set(middleClickActivationDelay, forKey: "middleClickActivationDelay")
         }
     }
+    @Published var middleClickMode: Mode {
+        didSet {
+            UserDefaults.standard.set(middleClickMode.rawValue, forKey: "middleClickMode")
+        }
+    }
     
     private var engine: VoiceInkEngine
     private var recorderUIManager: RecorderUIManager
@@ -113,6 +118,7 @@ class RecordingShortcutManager: ObservableObject {
 
         self.isMiddleClickToggleEnabled = UserDefaults.standard.bool(forKey: "isMiddleClickToggleEnabled")
         self.middleClickActivationDelay = UserDefaults.standard.integer(forKey: "middleClickActivationDelay")
+        self.middleClickMode = Mode(rawValue: UserDefaults.standard.string(forKey: "middleClickMode") ?? "") ?? .hybrid
 
         let shortcutModeHandler = RecordingShortcutModeHandler(
             canHandleShortcutAction: {
@@ -192,7 +198,7 @@ class RecordingShortcutManager: ObservableObject {
                 await self.shortcutModeHandler.handleKeyDown(
                     action: .primaryRecording,
                     eventTime: eventTime,
-                    mode: .hybrid
+                    mode: self.middleClickMode
                 )
             }
         }
@@ -206,7 +212,7 @@ class RecordingShortcutManager: ObservableObject {
                 await self.shortcutModeHandler.handleKeyUp(
                     action: .primaryRecording,
                     eventTime: eventTime,
-                    mode: .hybrid
+                    mode: self.middleClickMode
                 )
             }
         }

@@ -127,6 +127,9 @@ struct SettingsView: View {
                     isEnabled: $recordingShortcutManager.isMiddleClickToggleEnabled,
                     label: "Middle-Click Recording"
                 ) {
+                    LabeledContent("Mode") {
+                        shortcutModePicker(binding: $recordingShortcutManager.middleClickMode)
+                    }
                     LabeledContent("Activation Delay") {
                         HStack {
                             TextField("", value: $recordingShortcutManager.middleClickActivationDelay, formatter: {
