@@ -138,7 +138,10 @@ class RecordingShortcutManager: ObservableObject {
 
         self.engine = engine
         self.recorderUIManager = recorderUIManager
-        self.recorderPanelShortcutManager = RecorderPanelShortcutManager(recorderUIManager: recorderUIManager)
+        self.recorderPanelShortcutManager = RecorderPanelShortcutManager(
+            recorderUIManager: recorderUIManager,
+            lockHandsFree: { shortcutModeHandler.promoteToHandsFree() }
+        )
         self.shortcutModeHandler = shortcutModeHandler
         self.primaryRecordingShortcutModeSource = primaryRecordingShortcutModeSource
         self.modeShortcutManager = ModeShortcutManager(
@@ -349,6 +352,7 @@ final class RecordingShortcutModeHandler {
 
     private var shortcutPressStartTime: TimeInterval?
     private var isHandsFreeRecording = false
+    private var promotedToHandsFree = false
     private var isShortcutPressed = false
     private var activeRecordingShortcutAction: ShortcutAction?
     private var interruptedRecordingActions = Set<ShortcutAction>()
@@ -376,9 +380,18 @@ final class RecordingShortcutModeHandler {
         isShortcutPressed = false
         shortcutPressStartTime = nil
         isHandsFreeRecording = false
+        promotedToHandsFree = false
         activeRecordingShortcutAction = nil
         interruptedRecordingActions.removeAll()
         activeShortcutCanCancelAccidentalStart = false
+    }
+
+    /// Promote an in-progress hold (push-to-talk) into hands-free recording,
+    /// so releasing the trigger keeps recording instead of stopping it.
+    func promoteToHandsFree() {
+        guard isShortcutPressed, recordingState() == .recording else { return }
+        isHandsFreeRecording = true
+        promotedToHandsFree = true
     }
 
     func handleKeyDown(
@@ -437,6 +450,13 @@ final class RecordingShortcutModeHandler {
         isShortcutPressed = false
         activeRecordingShortcutAction = nil
         activeShortcutCanCancelAccidentalStart = false
+
+        if promotedToHandsFree {
+            promotedToHandsFree = false
+            isHandsFreeRecording = true
+            shortcutPressStartTime = nil
+            return
+        }
 
         switch mode {
         case .toggle:

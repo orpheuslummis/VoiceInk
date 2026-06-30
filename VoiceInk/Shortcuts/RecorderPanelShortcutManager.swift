@@ -5,6 +5,7 @@ import Carbon.HIToolbox
 @MainActor
 final class RecorderPanelShortcutManager: ObservableObject {
     private var recorderUIManager: RecorderUIManager
+    private let lockHandsFree: @MainActor () -> Void
     private var visibilityTask: Task<Void, Never>?
     private var shortcutChangeObserver: NSObjectProtocol?
     private let visibleRecorderMonitor = ShortcutMonitor()
@@ -14,8 +15,9 @@ final class RecorderPanelShortcutManager: ObservableObject {
     private let escapeDoublePressThreshold: TimeInterval = 1.5
     private var escapeTimeoutTask: Task<Void, Never>?
     
-    init(recorderUIManager: RecorderUIManager) {
+    init(recorderUIManager: RecorderUIManager, lockHandsFree: @escaping @MainActor () -> Void) {
         self.recorderUIManager = recorderUIManager
+        self.lockHandsFree = lockHandsFree
         setupShortcutChangeObserver()
         setupVisibilityObserver()
     }
@@ -75,6 +77,11 @@ final class RecorderPanelShortcutManager: ObservableObject {
             shortcuts[.recorderPanelEscape] = .key(keyCode: UInt16(kVK_Escape), modifierFlags: [])
         }
 
+        // Lock-to-hands-free: tap Space while holding a push-to-talk trigger to
+        // keep recording after release. Active (and suppressed) only while the
+        // recorder is visible.
+        shortcuts[.recorderPanelLockHandsFree] = .key(keyCode: UInt16(kVK_Space), modifierFlags: [])
+
         if canUseModeShortcuts {
             for (index, keyCode) in Self.digitKeyCodes.enumerated() {
                 shortcuts[.recorderPanelMode(index)] = .key(
@@ -106,6 +113,8 @@ final class RecorderPanelShortcutManager: ObservableObject {
             await handleEscapeShortcut()
         case .recorderPanelMode(let index):
             handleModeSelectionShortcut(index: index)
+        case .recorderPanelLockHandsFree:
+            lockHandsFree()
         default:
             break
         }

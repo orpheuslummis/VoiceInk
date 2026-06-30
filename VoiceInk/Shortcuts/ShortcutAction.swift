@@ -12,6 +12,7 @@ enum ShortcutAction: Hashable {
     case mode(UUID)
     case recorderPanelEscape
     case recorderPanelMode(Int)
+    case recorderPanelLockHandsFree
 
     var userDefaultsKey: String {
         "Shortcut_\(storageName)"
@@ -19,7 +20,7 @@ enum ShortcutAction: Hashable {
 
     var isStored: Bool {
         switch self {
-        case .recorderPanelEscape, .recorderPanelMode:
+        case .recorderPanelEscape, .recorderPanelMode, .recorderPanelLockHandsFree:
             return false
         default:
             return true
@@ -50,6 +51,8 @@ enum ShortcutAction: Hashable {
             return "recorderPanelEscape"
         case .recorderPanelMode(let index):
             return "recorderPanelMode_\(index)"
+        case .recorderPanelLockHandsFree:
+            return "recorderPanelLockHandsFree"
         }
     }
 
@@ -85,6 +88,8 @@ enum ShortcutAction: Hashable {
             return String(localized: "Recorder Cancel")
         case .recorderPanelMode(let index):
             return String(format: String(localized: "Select Mode %@"), Self.displayNumber(forRecorderPanelIndex: index))
+        case .recorderPanelLockHandsFree:
+            return String(localized: "Lock Hands-Free")
         }
     }
 
