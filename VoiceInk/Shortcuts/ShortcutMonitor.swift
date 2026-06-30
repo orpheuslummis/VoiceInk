@@ -186,12 +186,17 @@ final class ShortcutMonitor {
                 continue
             }
 
+            // The lock-to-hands-free key is pressed while a recording trigger is
+            // held; if that trigger is a modifier (e.g. Fn) the key arrives with
+            // that modifier set, so match it by key code alone.
+            let ignoreModifiers = (action == .recorderPanelLockHandsFree)
             let transition = transitionForKeyShortcut(
                 state.shortcut,
                 isDown: state.isDown,
                 kind: kind,
                 keyCode: keyCode,
-                modifierFlags: modifierFlags
+                modifierFlags: modifierFlags,
+                ignoreModifiers: ignoreModifiers
             )
 
             switch transition {
@@ -231,11 +236,15 @@ final class ShortcutMonitor {
         isDown: Bool,
         kind: EventKind,
         keyCode: UInt16,
-        modifierFlags: NSEvent.ModifierFlags
+        modifierFlags: NSEvent.ModifierFlags,
+        ignoreModifiers: Bool = false
     ) -> ShortcutTransition {
         switch kind {
         case .keyDown:
-            guard shortcut.matchesKeyEvent(keyCode: keyCode, modifierFlags: modifierFlags) else {
+            let matches = ignoreModifiers
+                ? keyCode == shortcut.keyCode
+                : shortcut.matchesKeyEvent(keyCode: keyCode, modifierFlags: modifierFlags)
+            guard matches else {
                 return .none
             }
 
