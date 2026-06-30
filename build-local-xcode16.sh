@@ -53,4 +53,17 @@ APP="$DERIVED/Build/Products/Debug/VoiceInk.app"
 rm -rf "$HOME/Downloads/VoiceInk.app"
 ditto "$APP" "$HOME/Downloads/VoiceInk.app"
 xattr -cr "$HOME/Downloads/VoiceInk.app"
-echo ">> built: ~/Downloads/VoiceInk.app  (install: ditto over /Applications/VoiceInk.app)"
+
+# Re-sign with the stable local identity so TCC grants (Accessibility/Mic)
+# persist across rebuilds. Run ./setup-local-signing.sh once to create it.
+SIGN_KEYCHAIN="$HOME/Library/Keychains/voiceink-local-signing.keychain-db"
+if security find-identity -p codesigning "$SIGN_KEYCHAIN" 2>/dev/null | grep -q "VoiceInk Local Signing"; then
+  security unlock-keychain -p voiceink-local "$SIGN_KEYCHAIN" 2>/dev/null || true
+  codesign --force --deep --sign "VoiceInk Local Signing" --keychain "$SIGN_KEYCHAIN" \
+    --entitlements "$PWD/VoiceInk/VoiceInk.local.entitlements" "$HOME/Downloads/VoiceInk.app"
+  echo ">> signed with stable identity (TCC grants persist across rebuilds)"
+else
+  echo ">> WARNING: stable signing identity not found; app is ad-hoc signed."
+  echo ">>          run ./setup-local-signing.sh to avoid re-granting permissions each build."
+fi
+echo ">> built: ~/Downloads/VoiceInk.app  (install: ditto over /Applications/VoiceInk.app, it keeps the signature)"
